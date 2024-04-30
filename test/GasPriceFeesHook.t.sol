@@ -24,9 +24,13 @@ contract TestGasPriceFeesHook is Test, Deployers {
     GasPriceFeesHook hook;
 
     function setUp() public {
+        // Deploy v4-core
         deployFreshManagerAndRouters();
+
+        // Deploy, mint tokens, and approve all periphery contracts for two tokens
         (currency0, currency1) = deployMintAndApprove2Currencies();
 
+        // Deploy our hook with the proper flags
         uint160 flags = uint160(
             Hooks.BEFORE_INITIALIZE_FLAG |
                 Hooks.BEFORE_SWAP_FLAG |
@@ -40,17 +44,21 @@ contract TestGasPriceFeesHook is Test, Deployers {
             abi.encode(manager)
         );
 
+        // Set gas price = 10 gwei and deploy our hook
         vm.txGasPrice(10 gwei);
         hook = new GasPriceFeesHook{salt: salt}(manager);
 
+        // Initialize a pool
         (key, ) = initPool(
             currency0,
             currency1,
             hook,
-            SwapFeeLibrary.DYNAMIC_FEE_FLAG,
+            SwapFeeLibrary.DYNAMIC_FEE_FLAG, // Set the `DYNAMIC_FEE_FLAG` in place of specifying a fixed fee
             SQRT_RATIO_1_1,
             ZERO_BYTES
         );
+
+        // Add some liquidity
         modifyLiquidityRouter.modifyLiquidity(
             key,
             IPoolManager.ModifyLiquidityParams({
@@ -73,7 +81,7 @@ contract TestGasPriceFeesHook is Test, Deployers {
 
         IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
             zeroForOne: true,
-            amountSpecified: -0.001 ether,
+            amountSpecified: -0.00001 ether,
             sqrtPriceLimitX96: TickMath.MIN_SQRT_RATIO + 1
         });
 
@@ -85,6 +93,11 @@ contract TestGasPriceFeesHook is Test, Deployers {
         assertEq(gasPrice, 10 gwei);
         assertEq(movingAverageGasPrice, 10 gwei);
         assertEq(movingAverageGasPriceCount, 1);
+
+        // ----------------------------------------------------------------------
+        // ----------------------------------------------------------------------
+        // ----------------------------------------------------------------------
+        // ----------------------------------------------------------------------
 
         // 1. Conduct a swap at gasprice = 10 gwei
         // This should just use `BASE_FEE` since the gas price is the same as the current average
@@ -103,10 +116,10 @@ contract TestGasPriceFeesHook is Test, Deployers {
         assertEq(movingAverageGasPrice, 10 gwei);
         assertEq(movingAverageGasPriceCount, 2);
 
-        // -------------
-        // -------------
-        // -------------
-        // -------------
+        // ----------------------------------------------------------------------
+        // ----------------------------------------------------------------------
+        // ----------------------------------------------------------------------
+        // ----------------------------------------------------------------------
 
         // 2. Conduct a swap at lower gasprice = 4 gwei
         // This should have a higher transaction fees
@@ -126,10 +139,10 @@ contract TestGasPriceFeesHook is Test, Deployers {
         assertEq(movingAverageGasPrice, 8 gwei);
         assertEq(movingAverageGasPriceCount, 3);
 
-        // -------------
-        // -------------
-        // -------------
-        // -------------
+        // ----------------------------------------------------------------------
+        // ----------------------------------------------------------------------
+        // ----------------------------------------------------------------------
+        // ----------------------------------------------------------------------
 
         // 3. Conduct a swap at higher gas price = 12 gwei
         // This should have a lower transaction fees

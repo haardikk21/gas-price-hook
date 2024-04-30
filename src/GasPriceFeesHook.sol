@@ -11,9 +11,14 @@ import {SwapFeeLibrary} from "v4-core/libraries/SwapFeeLibrary.sol";
 contract GasPriceFeesHook is BaseHook {
     using SwapFeeLibrary for uint24;
 
+    // Keeping track of the moving average gas price
     uint128 public movingAverageGasPrice;
+    // How many times has the moving average been updated?
+    // Needed as the denominator to update it the next time based on the moving average formula
     uint104 public movingAverageGasPriceCount;
-    uint24 public constant BASE_FEE = 5000;
+
+    // The default base fees we will charge
+    uint24 public constant BASE_FEE = 5000; // 0.5%
 
     error MustUseDynamicFee();
 
@@ -50,8 +55,10 @@ contract GasPriceFeesHook is BaseHook {
         uint160,
         bytes calldata
     ) external pure override returns (bytes4) {
+        // `.isDynamicFee()` function comes from using
+        // the `SwapFeeLibrary` for `uint24`
         if (!key.fee.isDynamicFee()) revert MustUseDynamicFee();
-        return GasPriceFeesHook.beforeInitialize.selector;
+        return this.beforeInitialize.selector;
     }
 
     function beforeSwap(
@@ -62,7 +69,7 @@ contract GasPriceFeesHook is BaseHook {
     ) external override poolManagerOnly returns (bytes4) {
         uint24 fee = getFee();
         poolManager.updateDynamicSwapFee(key, fee);
-        return GasPriceFeesHook.beforeSwap.selector;
+        return this.beforeSwap.selector;
     }
 
     function afterSwap(
@@ -73,7 +80,7 @@ contract GasPriceFeesHook is BaseHook {
         bytes calldata
     ) external override returns (bytes4) {
         updateMovingAverage();
-        return GasPriceFeesHook.afterSwap.selector;
+        return this.afterSwap.selector;
     }
 
     function getFee() internal view returns (uint24) {
@@ -92,8 +99,11 @@ contract GasPriceFeesHook is BaseHook {
         return BASE_FEE;
     }
 
+    // Update our moving average gas price
     function updateMovingAverage() internal {
         uint128 gasPrice = getGasPrice();
+
+        // New Average = ((Old Average * # of Txns Tracked) + Current Gas Price) / (# of Txns Tracked + 1)
         movingAverageGasPrice =
             ((movingAverageGasPrice * movingAverageGasPriceCount) + gasPrice) /
             (movingAverageGasPriceCount + 1);
@@ -101,6 +111,8 @@ contract GasPriceFeesHook is BaseHook {
         movingAverageGasPriceCount++;
     }
 
+    // Gets the current gas price of this transaction
+    // There is no high-level function in Solidity for this, but Solidity-assembly allows this
     function getGasPrice() public view returns (uint128) {
         uint128 gasPrice;
         assembly {
