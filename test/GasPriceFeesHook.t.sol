@@ -23,6 +23,10 @@ contract TestGasPriceFeesHook is Test, Deployers {
 
     GasPriceFeesHook hook;
 
+    // Common settings
+    PoolSwapTest.TestSettings testSettings;
+    IPoolManager.SwapParams params;
+
     function setUp() public {
         // Deploy v4-core
         deployFreshManagerAndRouters();
@@ -68,39 +72,38 @@ contract TestGasPriceFeesHook is Test, Deployers {
             }),
             ZERO_BYTES
         );
-    }
 
-    function test_feeUpdatesWithGasPrice() public {
-        // Set up our swap parameters
-        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest
-            .TestSettings({
-                withdrawTokens: true,
-                settleUsingTransfer: true,
-                currencyAlreadySent: false
-            });
+        // Set common settings
+        testSettings = PoolSwapTest.TestSettings({
+            withdrawTokens: true,
+            settleUsingTransfer: true,
+            currencyAlreadySent: false
+        });
 
-        IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
+        params = IPoolManager.SwapParams({
             zeroForOne: true,
             amountSpecified: -0.00001 ether,
             sqrtPriceLimitX96: TickMath.MIN_SQRT_RATIO + 1
         });
+    }
 
-        // Current gas price is 10 gwei
-        // Moving average should also be 10
+    /**
+     * @notice Verifies the initial gas prices.
+     */
+    function checkInitialGasPrices() internal view {
         uint128 gasPrice = hook.getGasPrice();
         uint128 movingAverageGasPrice = hook.movingAverageGasPrice();
         uint104 movingAverageGasPriceCount = hook.movingAverageGasPriceCount();
         assertEq(gasPrice, 10 gwei);
         assertEq(movingAverageGasPrice, 10 gwei);
         assertEq(movingAverageGasPriceCount, 1);
+    }
 
-        // ----------------------------------------------------------------------
-        // ----------------------------------------------------------------------
-        // ----------------------------------------------------------------------
-        // ----------------------------------------------------------------------
-
-        // 1. Conduct a swap at gasprice = 10 gwei
-        // This should just use `BASE_FEE` since the gas price is the same as the current average
+    /**
+     * @notice Performs a swap at 10 gwei gas price.
+     * @return outputFromBaseFeeSwap The output from the base fee swap.
+     */
+    function conductSwapAt10Gwei() internal returns (uint256) {
         uint256 balanceOfToken1Before = currency1.balanceOfSelf();
         swapRouter.swap(key, params, testSettings, ZERO_BYTES);
         uint256 balanceOfToken1After = currency1.balanceOfSelf();
@@ -109,69 +112,89 @@ contract TestGasPriceFeesHook is Test, Deployers {
 
         assertGt(balanceOfToken1After, balanceOfToken1Before);
 
-        // Our moving average shouldn't have changed
-        // only the count should have incremented
-        movingAverageGasPrice = hook.movingAverageGasPrice();
-        movingAverageGasPriceCount = hook.movingAverageGasPriceCount();
+        uint128 movingAverageGasPrice = hook.movingAverageGasPrice();
+        uint104 movingAverageGasPriceCount = hook.movingAverageGasPriceCount();
         assertEq(movingAverageGasPrice, 10 gwei);
         assertEq(movingAverageGasPriceCount, 2);
 
-        // ----------------------------------------------------------------------
-        // ----------------------------------------------------------------------
-        // ----------------------------------------------------------------------
-        // ----------------------------------------------------------------------
+        return outputFromBaseFeeSwap;
+    }
 
-        // 2. Conduct a swap at lower gasprice = 4 gwei
-        // This should have a higher transaction fees
+    /**
+     * @notice Performs a swap at 4 gwei gas price.
+     * @return outputFromIncreasedFeeSwap The output from the increased fee swap.
+     */
+    function conductSwapAt4Gwei() internal returns (uint256) {
         vm.txGasPrice(4 gwei);
-        balanceOfToken1Before = currency1.balanceOfSelf();
+        uint256 balanceOfToken1Before = currency1.balanceOfSelf();
         swapRouter.swap(key, params, testSettings, ZERO_BYTES);
-        balanceOfToken1After = currency1.balanceOfSelf();
-
+        uint256 balanceOfToken1After = currency1.balanceOfSelf();
         uint256 outputFromIncreasedFeeSwap = balanceOfToken1After -
             balanceOfToken1Before;
 
         assertGt(balanceOfToken1After, balanceOfToken1Before);
 
-        // Our moving average should now be (10 + 10 + 4) / 3 = 8 Gwei
-        movingAverageGasPrice = hook.movingAverageGasPrice();
-        movingAverageGasPriceCount = hook.movingAverageGasPriceCount();
+        uint128 movingAverageGasPrice = hook.movingAverageGasPrice();
+        uint104 movingAverageGasPriceCount = hook.movingAverageGasPriceCount();
         assertEq(movingAverageGasPrice, 8 gwei);
         assertEq(movingAverageGasPriceCount, 3);
 
-        // ----------------------------------------------------------------------
-        // ----------------------------------------------------------------------
-        // ----------------------------------------------------------------------
-        // ----------------------------------------------------------------------
+        return outputFromIncreasedFeeSwap;
+    }
 
-        // 3. Conduct a swap at higher gas price = 12 gwei
-        // This should have a lower transaction fees
+    /**
+     * @notice Performs a swap at 12 gwei gas price.
+     * @return outputFromDecreasedFeeSwap The output from the decreased fee swap.
+     */
+    function conductSwapAt12Gwei() internal returns (uint256) {
         vm.txGasPrice(12 gwei);
-        balanceOfToken1Before = currency1.balanceOfSelf();
+        uint256 balanceOfToken1Before = currency1.balanceOfSelf();
         swapRouter.swap(key, params, testSettings, ZERO_BYTES);
-        balanceOfToken1After = currency1.balanceOfSelf();
-
-        uint outputFromDecreasedFeeSwap = balanceOfToken1After -
+        uint256 balanceOfToken1After = currency1.balanceOfSelf();
+        uint256 outputFromDecreasedFeeSwap = balanceOfToken1After -
             balanceOfToken1Before;
 
         assertGt(balanceOfToken1After, balanceOfToken1Before);
 
-        // Our moving average should now be (10 + 10 + 4 + 12) / 4 = 9 Gwei
-        movingAverageGasPrice = hook.movingAverageGasPrice();
-        movingAverageGasPriceCount = hook.movingAverageGasPriceCount();
-
+        uint128 movingAverageGasPrice = hook.movingAverageGasPrice();
+        uint104 movingAverageGasPriceCount = hook.movingAverageGasPriceCount();
         assertEq(movingAverageGasPrice, 9 gwei);
         assertEq(movingAverageGasPriceCount, 4);
 
-        // ------
+        return outputFromDecreasedFeeSwap;
+    }
 
-        // 4. Check all the output amounts
-
+    /**
+     * @notice Checks the output amounts from different gas price swaps.
+     * @param outputFromBaseFeeSwap The output from the base fee swap.
+     * @param outputFromIncreasedFeeSwap The output from the increased fee swap.
+     * @param outputFromDecreasedFeeSwap The output from the decreased fee swap.
+     */
+    function checkOutputs(
+        uint256 outputFromBaseFeeSwap,
+        uint256 outputFromIncreasedFeeSwap,
+        uint256 outputFromDecreasedFeeSwap
+    ) internal view {
         console.log("Base Fee Output", outputFromBaseFeeSwap);
         console.log("Increased Fee Output", outputFromIncreasedFeeSwap);
         console.log("Decreased Fee Output", outputFromDecreasedFeeSwap);
 
         assertGt(outputFromDecreasedFeeSwap, outputFromBaseFeeSwap);
         assertGt(outputFromBaseFeeSwap, outputFromIncreasedFeeSwap);
+    }
+
+    /**
+     * @notice Tests the fee updates with varying gas prices.
+     */
+    function test_feeUpdatesWithGasPrice() public {
+        checkInitialGasPrices();
+        uint256 outputFromBaseFeeSwap = conductSwapAt10Gwei();
+        uint256 outputFromIncreasedFeeSwap = conductSwapAt4Gwei();
+        uint256 outputFromDecreasedFeeSwap = conductSwapAt12Gwei();
+        checkOutputs(
+            outputFromBaseFeeSwap,
+            outputFromIncreasedFeeSwap,
+            outputFromDecreasedFeeSwap
+        );
     }
 }
