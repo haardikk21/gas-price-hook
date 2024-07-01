@@ -8,7 +8,7 @@ import {PoolManager} from "v4-core/PoolManager.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
-import {SwapFeeLibrary} from "v4-core/libraries/SwapFeeLibrary.sol";
+import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {HookMiner} from "./utils/HookMiner.sol";
@@ -31,30 +31,26 @@ contract TestGasPriceFeesHook is Test, Deployers {
         (currency0, currency1) = deployMintAndApprove2Currencies();
 
         // Deploy our hook with the proper flags
-        uint160 flags = uint160(
-            Hooks.BEFORE_INITIALIZE_FLAG |
-                Hooks.BEFORE_SWAP_FLAG |
-                Hooks.AFTER_SWAP_FLAG
-        );
-        (, bytes32 salt) = HookMiner.find(
-            address(this),
-            flags,
-            0,
-            type(GasPriceFeesHook).creationCode,
-            abi.encode(manager)
+        address hookAddress = address(
+            uint160(
+                Hooks.BEFORE_INITIALIZE_FLAG |
+                    Hooks.BEFORE_SWAP_FLAG |
+                    Hooks.AFTER_SWAP_FLAG
+            )
         );
 
         // Set gas price = 10 gwei and deploy our hook
         vm.txGasPrice(10 gwei);
-        hook = new GasPriceFeesHook{salt: salt}(manager);
+        deployCodeTo("GasPriceFeesHook", abi.encode(manager), hookAddress);
+        hook = GasPriceFeesHook(hookAddress);
 
         // Initialize a pool
         (key, ) = initPool(
             currency0,
             currency1,
             hook,
-            SwapFeeLibrary.DYNAMIC_FEE_FLAG, // Set the `DYNAMIC_FEE_FLAG` in place of specifying a fixed fee
-            SQRT_RATIO_1_1,
+            LPFeeLibrary.DYNAMIC_FEE_FLAG, // Set the `DYNAMIC_FEE_FLAG` in place of specifying a fixed fee
+            SQRT_PRICE_1_1,
             ZERO_BYTES
         );
 
@@ -64,7 +60,8 @@ contract TestGasPriceFeesHook is Test, Deployers {
             IPoolManager.ModifyLiquidityParams({
                 tickLower: -60,
                 tickUpper: 60,
-                liquidityDelta: 100 ether
+                liquidityDelta: 100 ether,
+                salt: bytes32(0)
             }),
             ZERO_BYTES
         );
@@ -73,16 +70,12 @@ contract TestGasPriceFeesHook is Test, Deployers {
     function test_feeUpdatesWithGasPrice() public {
         // Set up our swap parameters
         PoolSwapTest.TestSettings memory testSettings = PoolSwapTest
-            .TestSettings({
-                withdrawTokens: true,
-                settleUsingTransfer: true,
-                currencyAlreadySent: false
-            });
+            .TestSettings({takeClaims: false, settleUsingBurn: false});
 
         IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
             zeroForOne: true,
             amountSpecified: -0.00001 ether,
-            sqrtPriceLimitX96: TickMath.MIN_SQRT_RATIO + 1
+            sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
         });
 
         // Current gas price is 10 gwei

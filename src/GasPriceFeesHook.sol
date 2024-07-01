@@ -6,10 +6,11 @@ import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
-import {SwapFeeLibrary} from "v4-core/libraries/SwapFeeLibrary.sol";
+import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
+import {BeforeSwapDelta, toBeforeSwapDelta} from "v4-core/types/BeforeSwapDelta.sol";
 
 contract GasPriceFeesHook is BaseHook {
-    using SwapFeeLibrary for uint24;
+    using LPFeeLibrary for uint24;
 
     // Keeping track of the moving average gas price
     uint128 public movingAverageGasPrice;
@@ -45,7 +46,11 @@ contract GasPriceFeesHook is BaseHook {
                 beforeSwap: true,
                 afterSwap: true,
                 beforeDonate: false,
-                afterDonate: false
+                afterDonate: false,
+                beforeSwapReturnDelta: false,
+                afterSwapReturnDelta: false,
+                afterAddLiquidityReturnDelta: false,
+                afterRemoveLiquidityReturnDelta: false
             });
     }
 
@@ -66,10 +71,15 @@ contract GasPriceFeesHook is BaseHook {
         PoolKey calldata key,
         IPoolManager.SwapParams calldata,
         bytes calldata
-    ) external override poolManagerOnly returns (bytes4) {
+    )
+        external
+        override
+        onlyByManager
+        returns (bytes4, BeforeSwapDelta, uint24)
+    {
         uint24 fee = getFee();
-        poolManager.updateDynamicSwapFee(key, fee);
-        return this.beforeSwap.selector;
+        manager.updateDynamicLPFee(key, fee);
+        return (this.beforeSwap.selector, toBeforeSwapDelta(0, 0), 0);
     }
 
     function afterSwap(
@@ -78,9 +88,9 @@ contract GasPriceFeesHook is BaseHook {
         IPoolManager.SwapParams calldata,
         BalanceDelta,
         bytes calldata
-    ) external override returns (bytes4) {
+    ) external override returns (bytes4, int128) {
         updateMovingAverage();
-        return this.afterSwap.selector;
+        return (this.afterSwap.selector, 0);
     }
 
     function getFee() internal view returns (uint24) {
