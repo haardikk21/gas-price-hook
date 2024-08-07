@@ -7,7 +7,7 @@ import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
-import {BeforeSwapDelta, toBeforeSwapDelta} from "v4-core/types/BeforeSwapDelta.sol";
+import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "v4-core/types/BeforeSwapDelta.sol";
 
 contract GasPriceFeesHook is BaseHook {
     using LPFeeLibrary for uint24;
@@ -79,7 +79,7 @@ contract GasPriceFeesHook is BaseHook {
     {
         uint24 fee = getFee();
         poolManager.updateDynamicLPFee(key, fee);
-        return (this.beforeSwap.selector, toBeforeSwapDelta(0, 0), 0);
+        return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }
 
     function afterSwap(
@@ -94,7 +94,7 @@ contract GasPriceFeesHook is BaseHook {
     }
 
     function getFee() internal view returns (uint24) {
-        uint128 gasPrice = getGasPrice();
+        uint128 gasPrice = uint128(tx.gasprice);
 
         // if gasPrice > movingAverageGasPrice * 1.1, then half the fees
         if (gasPrice > (movingAverageGasPrice * 11) / 10) {
@@ -111,7 +111,7 @@ contract GasPriceFeesHook is BaseHook {
 
     // Update our moving average gas price
     function updateMovingAverage() internal {
-        uint128 gasPrice = getGasPrice();
+        uint128 gasPrice = uint128(tx.gasprice);
 
         // New Average = ((Old Average * # of Txns Tracked) + Current Gas Price) / (# of Txns Tracked + 1)
         movingAverageGasPrice =
@@ -119,15 +119,5 @@ contract GasPriceFeesHook is BaseHook {
             (movingAverageGasPriceCount + 1);
 
         movingAverageGasPriceCount++;
-    }
-
-    // Gets the current gas price of this transaction
-    // There is no high-level function in Solidity for this, but Solidity-assembly allows this
-    function getGasPrice() public view returns (uint128) {
-        uint128 gasPrice;
-        assembly {
-            gasPrice := gasprice()
-        }
-        return gasPrice;
     }
 }

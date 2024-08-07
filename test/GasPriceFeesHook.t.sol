@@ -79,7 +79,7 @@ contract TestGasPriceFeesHook is Test, Deployers {
 
         // Current gas price is 10 gwei
         // Moving average should also be 10
-        uint128 gasPrice = hook.getGasPrice();
+        uint128 gasPrice = uint128(tx.gasprice);
         uint128 movingAverageGasPrice = hook.movingAverageGasPrice();
         uint104 movingAverageGasPriceCount = hook.movingAverageGasPriceCount();
         assertEq(gasPrice, 10 gwei);
