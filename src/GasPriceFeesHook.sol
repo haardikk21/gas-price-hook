@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {BaseHook} from "v4-periphery/BaseHook.sol";
+import {BaseHook} from "v4-periphery/src/base/hooks/BaseHook.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
@@ -74,11 +74,11 @@ contract GasPriceFeesHook is BaseHook {
     )
         external
         override
-        onlyByManager
+        onlyByPoolManager
         returns (bytes4, BeforeSwapDelta, uint24)
     {
         uint24 fee = getFee();
-        manager.updateDynamicLPFee(key, fee);
+        poolManager.updateDynamicLPFee(key, fee);
         return (this.beforeSwap.selector, toBeforeSwapDelta(0, 0), 0);
     }
 
