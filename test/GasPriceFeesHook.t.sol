@@ -40,7 +40,7 @@ contract TestGasPriceFeesHook is Test, Deployers {
 
         // Set gas price = 10 gwei and deploy our hook
         vm.txGasPrice(10 gwei);
-        deployCodeTo("GasPriceFeesHook", abi.encode(manager), hookAddress);
+        deployCodeTo("GasPriceFeesHook.sol", abi.encode(manager), hookAddress);
         hook = GasPriceFeesHook(hookAddress);
 
         // Initialize a pool
@@ -49,8 +49,7 @@ contract TestGasPriceFeesHook is Test, Deployers {
             currency1,
             hook,
             LPFeeLibrary.DYNAMIC_FEE_FLAG, // Set the `DYNAMIC_FEE_FLAG` in place of specifying a fixed fee
-            SQRT_PRICE_1_1,
-            ZERO_BYTES
+            SQRT_PRICE_1_1
         );
 
         // Add some liquidity
