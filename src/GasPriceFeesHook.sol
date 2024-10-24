@@ -57,8 +57,7 @@ contract GasPriceFeesHook is BaseHook {
     function beforeInitialize(
         address,
         PoolKey calldata key,
-        uint160,
-        bytes calldata
+        uint160
     ) external pure override returns (bytes4) {
         // `.isDynamicFee()` function comes from using
         // the `SwapFeeLibrary` for `uint24`
@@ -74,7 +73,7 @@ contract GasPriceFeesHook is BaseHook {
     )
         external
         override
-        onlyByPoolManager
+        onlyPoolManager
         returns (bytes4, BeforeSwapDelta, uint24)
     {
         uint24 fee = getFee();
