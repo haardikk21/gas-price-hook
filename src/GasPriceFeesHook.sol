@@ -19,7 +19,7 @@ contract GasPriceFeesHook is BaseHook {
     uint104 public movingAverageGasPriceCount;
 
     // The default base fees we will charge
-    uint24 public constant BASE_FEE = 5000; // 0.5%
+    uint24 public constant BASE_FEE = 5000; // denominated in pips (one-hundredth bps) 0.5%
 
     error MustUseDynamicFee();
 
@@ -77,8 +77,13 @@ contract GasPriceFeesHook is BaseHook {
         returns (bytes4, BeforeSwapDelta, uint24)
     {
         uint24 fee = getFee();
-        poolManager.updateDynamicLPFee(key, fee);
-        return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
+        // poolManager.updateDynamicLPFee(key, fee);
+        uint24 feeWithFlag = fee | LPFeeLibrary.OVERRIDE_FEE_FLAG;
+        return (
+            this.beforeSwap.selector,
+            BeforeSwapDeltaLibrary.ZERO_DELTA,
+            feeWithFlag
+        );
     }
 
     function afterSwap(
