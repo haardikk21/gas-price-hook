@@ -60,7 +60,7 @@ contract GasPriceFeesHook is BaseHook {
         uint160
     ) internal pure override returns (bytes4) {
         // `.isDynamicFee()` function comes from using
-        // the `SwapFeeLibrary` for `uint24`
+        // the `LPFeeLibrary` for `uint24`
         if (!key.fee.isDynamicFee()) revert MustUseDynamicFee();
         return this.beforeInitialize.selector;
     }
