@@ -17,7 +17,6 @@ import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {console} from "forge-std/console.sol";
 
 contract TestGasPriceFeesHook is Test, Deployers {
-    using CurrencyLibrary for Currency;
     using PoolIdLibrary for PoolKey;
 
     GasPriceFeesHook hook;
