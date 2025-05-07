@@ -18,8 +18,6 @@ import {SwapParams, ModifyLiquidityParams} from "v4-core/types/PoolOperation.sol
 import {console} from "forge-std/console.sol";
 
 contract TestGasPriceFeesHook is Test, Deployers {
-    using PoolIdLibrary for PoolKey;
-
     GasPriceFeesHook hook;
 
     function setUp() public {

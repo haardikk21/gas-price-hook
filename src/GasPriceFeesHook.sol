@@ -73,6 +73,7 @@ contract GasPriceFeesHook is BaseHook {
         bytes calldata
     ) internal view override returns (bytes4, BeforeSwapDelta, uint24) {
         uint24 fee = getFee();
+        // If we wanted to generally update LP fee for a longer-term than per-swap
         // poolManager.updateDynamicLPFee(key, fee);
         uint24 feeWithFlag = fee | LPFeeLibrary.OVERRIDE_FEE_FLAG;
         return (
