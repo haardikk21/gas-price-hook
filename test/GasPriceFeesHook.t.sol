@@ -14,6 +14,7 @@ import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
 import {GasPriceFeesHook} from "../src/GasPriceFeesHook.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
+import {SwapParams, ModifyLiquidityParams} from "v4-core/types/PoolOperation.sol";
 import {console} from "forge-std/console.sol";
 
 contract TestGasPriceFeesHook is Test, Deployers {
@@ -54,7 +55,7 @@ contract TestGasPriceFeesHook is Test, Deployers {
         // Add some liquidity
         modifyLiquidityRouter.modifyLiquidity(
             key,
-            IPoolManager.ModifyLiquidityParams({
+            ModifyLiquidityParams({
                 tickLower: -60,
                 tickUpper: 60,
                 liquidityDelta: 100 ether,
@@ -69,7 +70,7 @@ contract TestGasPriceFeesHook is Test, Deployers {
         PoolSwapTest.TestSettings memory testSettings = PoolSwapTest
             .TestSettings({takeClaims: false, settleUsingBurn: false});
 
-        IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
+        SwapParams memory params = SwapParams({
             zeroForOne: true,
             amountSpecified: -0.00001 ether,
             sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1

@@ -8,6 +8,7 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "v4-core/types/BeforeSwapDelta.sol";
+import {SwapParams} from "v4-core/types/PoolOperation.sol";
 
 contract GasPriceFeesHook is BaseHook {
     using LPFeeLibrary for uint24;
@@ -68,9 +69,9 @@ contract GasPriceFeesHook is BaseHook {
     function _beforeSwap(
         address,
         PoolKey calldata key,
-        IPoolManager.SwapParams calldata,
+        SwapParams calldata,
         bytes calldata
-    ) internal override returns (bytes4, BeforeSwapDelta, uint24) {
+    ) internal view override returns (bytes4, BeforeSwapDelta, uint24) {
         uint24 fee = getFee();
         // poolManager.updateDynamicLPFee(key, fee);
         uint24 feeWithFlag = fee | LPFeeLibrary.OVERRIDE_FEE_FLAG;
@@ -84,7 +85,7 @@ contract GasPriceFeesHook is BaseHook {
     function _afterSwap(
         address,
         PoolKey calldata,
-        IPoolManager.SwapParams calldata,
+        SwapParams calldata,
         BalanceDelta,
         bytes calldata
     ) internal override returns (bytes4, int128) {
